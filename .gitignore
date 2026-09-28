@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables & secrets (CRITICAL)
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+!.env.example
+serviceAccountKey.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+*.pem
+*.key
+*.cert
+*.crt
+
+# Production builds
+dist/
+**/dist/
+dist-ssr/
+build/
+**/build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor & OS files
+.DS_Store
+**/.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
