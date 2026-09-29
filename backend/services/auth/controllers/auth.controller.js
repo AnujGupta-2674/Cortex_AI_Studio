@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { auth } from "../config/firebase.js";
 import User from "../models/user.model.js";
+import redis from "../../../shared/redis.js";
 
 export const login = async (req, res) => {
   try {
@@ -26,7 +27,20 @@ export const login = async (req, res) => {
     }
       
     const sessionId = crypto.randomUUID();
-    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const SEVEN_DAYS_SEC = 7 * 24 * 60 * 60; // 604,800 seconds
+    const SEVEN_DAYS_MS = SEVEN_DAYS_SEC * 1000; // milliseconds for cookie maxAge
+
+    await redis.set(
+      `session-${sessionId}`,
+      JSON.stringify({
+        userId: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+      }),
+      "EX",
+      SEVEN_DAYS_SEC
+    );
 
     res.cookie("session", sessionId, {
       maxAge: SEVEN_DAYS_MS,
@@ -55,15 +69,21 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
+    const sessionId = req.cookies?.session;
+
+    if (sessionId) {
+      await redis.del(`session-${sessionId}`);
+    }
+
     res.clearCookie("session", {
       httpOnly: true,
       sameSite: "strict",
-      secure: false
+      secure: process.env.NODE_ENV === "production",
     });
       
     return res.status(200).json({
       success: true,
-      message: "Logged out successfully"
+      message: "Logged out successfully",
     });
       
   } catch (error) {
