@@ -1,13 +1,16 @@
 import express from 'express';
 import "dotenv/config";
 import mongoose from 'mongoose';
+import cookieParser from 'cookie-parser';
 import connectToDB from './config/db.js';
+import authRoutes from './routes/auth.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 8001;
 
 // Middleware
 app.use(express.json());
+app.use(cookieParser());
 
 // Health check endpoint (vital for Docker, K8s, and load balancers)
 app.get('/health', (req, res) => {
@@ -21,6 +24,9 @@ app.get('/health', (req, res) => {
 });
 
 // Routes
+app.use('/auth', authRoutes);
+app.use('/', authRoutes);
+
 
 
 // Start server only after establishing database connection
