@@ -22,7 +22,7 @@ export const loginWithGoogle = createAsyncThunk(
       const idToken = await credentials.user.getIdToken();
 
       // 2. Gateway Handshake & Session Generation
-      const { data } = await api.post('/auth/login', { token: idToken });
+      const { data } = await api.post('/api/auth/login', { token: idToken });
       const user = data.user;
 
       // 3. Cache session synchronized with 7-day cookie lifespan
@@ -44,13 +44,37 @@ export const logoutUser = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await signOut(auth);
-      await api.post('/auth/logout');
+      await api.post('/api/auth/logout');
       return true;
     } catch (err) {
       console.error('[auth/logoutUser] Error:', err);
       return rejectWithValue(resolveErrorMessage(err, 'Failed to sign out cleanly.'));
     } finally {
       authStorage.clearUser();
+    }
+  }
+);
+
+/**
+ * Async Thunk: Fetch current session user from gateway (/api/me).
+ * Verifies HTTP-only session cookie against Redis and syncs auth state.
+ */
+export const fetchCurrentUser = createAsyncThunk(
+  'auth/fetchCurrentUser',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get('/api/me');
+      const user = data.user;
+      if (user) {
+        authStorage.setUser(user);
+      }
+      return user;
+    } catch (err) {
+      // Expired or invalid session cookie on server
+      if (err.response?.status === 401) {
+        authStorage.clearUser();
+      }
+      return rejectWithValue(resolveErrorMessage(err, 'Failed to fetch current user session.'));
     }
   }
 );
@@ -63,6 +87,7 @@ const initialState = {
   token: null,
   isAuthenticated: Boolean(cachedUser),
   loading: false,
+  isCheckingAuth: true,
   error: null,
 };
 
@@ -79,6 +104,7 @@ const authSlice = createSlice({
         ...initialState,
         user: null,
         isAuthenticated: false,
+        isCheckingAuth: false,
       };
     },
   },
@@ -94,11 +120,28 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.isAuthenticated = true;
+        state.isCheckingAuth = false;
         state.error = null;
       })
       .addCase(loginWithGoogle.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+
+      // Fetch Current User (/api/me) Lifecycle
+      .addCase(fetchCurrentUser.pending, (state) => {
+        state.isCheckingAuth = true;
+      })
+      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        state.isCheckingAuth = false;
+        state.user = action.payload;
+        state.isAuthenticated = Boolean(action.payload);
+        state.error = null;
+      })
+      .addCase(fetchCurrentUser.rejected, (state) => {
+        state.isCheckingAuth = false;
+        state.user = null;
+        state.isAuthenticated = false;
       })
 
       // Logout Lifecycle
@@ -110,6 +153,7 @@ const authSlice = createSlice({
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
+        state.isCheckingAuth = false;
         state.error = null;
       })
       .addCase(logoutUser.rejected, (state) => {
@@ -117,6 +161,7 @@ const authSlice = createSlice({
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
+        state.isCheckingAuth = false;
       });
   },
 });
@@ -125,6 +170,7 @@ const authSlice = createSlice({
 export const selectCurrentUser = (state) => state.auth.user;
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 export const selectAuthLoading = (state) => state.auth.loading;
+export const selectIsCheckingAuth = (state) => state.auth.isCheckingAuth;
 export const selectAuthError = (state) => state.auth.error;
 
 export const { clearError, resetAuthState } = authSlice.actions;

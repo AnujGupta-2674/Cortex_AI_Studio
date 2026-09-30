@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { auth } from "../config/firebase.js";
 import User from "../models/user.model.js";
-import redis from "../../../shared/redis.js";
+import redis from "../../../shared/redis/redis.js";
 
 export const login = async (req, res) => {
   try {
@@ -34,6 +34,7 @@ export const login = async (req, res) => {
       `session-${sessionId}`,
       JSON.stringify({
         userId: user._id,
+        firebaseUid: user.firebaseUid,
         name: user.name,
         email: user.email,
         avatar: user.avatar,

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   loginWithGoogle, 
@@ -119,7 +118,7 @@ export const Login = () => {
                     MongoDB Synced
                   </span>
                   <span className="px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-300 text-xs font-mono border border-purple-500/20">
-                    UID: {user.firebaseUid?.slice(0, 8)}...
+                    UID: {(user.firebaseUid || user.userId || user._id)?.slice(0, 8)}...
                   </span>
                 </div>
               </div>

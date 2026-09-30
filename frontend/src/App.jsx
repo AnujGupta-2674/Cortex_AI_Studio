@@ -1,9 +1,17 @@
-import React from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { fetchCurrentUser } from './redux/slices/authSlice.js';
 import Login from './pages/Login.jsx';
 import NotFound from './pages/NotFound.jsx';
 
 const App = () => {
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    dispatch(fetchCurrentUser());
+  }, [dispatch]);
+
   return (
     <BrowserRouter>
       <Routes>
