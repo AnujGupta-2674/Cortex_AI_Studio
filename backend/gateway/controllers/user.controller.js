@@ -1,3 +1,9 @@
+/**
+ * Fetches the currently authenticated user from the gateway session.
+ * @param {import('express').Request} req - Express request object containing user session.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response with user data or error message.
+ */
 const getCurrentUser = async (req, res) => {
     try {
         return res.status(200).json({

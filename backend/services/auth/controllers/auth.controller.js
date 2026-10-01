@@ -3,6 +3,12 @@ import { auth } from "../config/firebase.js";
 import User from "../models/user.model.js";
 import redis from "../../../shared/redis/redis.js";
 
+/**
+ * Authenticates user via Firebase token, manages session in Redis, and sets cookie.
+ * @param {import('express').Request} req - Express request with Firebase ID token.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response with authenticated user details.
+ */
 export const login = async (req, res) => {
   try {
     const { token } = req.body;
@@ -68,6 +74,12 @@ export const login = async (req, res) => {
   }
 };
 
+/**
+ * Logs out user by clearing the session from Redis and clearing the cookie.
+ * @param {import('express').Request} req - Express request with session cookie.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response confirming logout status.
+ */
 export const logout = async (req, res) => {
   try {
     const sessionId = req.cookies?.session;

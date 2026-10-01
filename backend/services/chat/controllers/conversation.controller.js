@@ -2,7 +2,10 @@ import Conversation from "../models/conversation.model.js";
 import Message from "../models/message.model.js";
 
 /**
- * Create a new conversation for the authenticated user
+ * Creates a new conversation for the authenticated user.
+ * @param {import('express').Request} req - Express request with user context and title in body.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response with created conversation.
  */
 export const createConversation = async (req, res) => {
     try {
@@ -31,7 +34,10 @@ export const createConversation = async (req, res) => {
 };
 
 /**
- * Get all conversations for the authenticated user with pagination & search
+ * Retrieves all conversations for the authenticated user with pagination and search.
+ * @param {import('express').Request} req - Express request with pagination and search queries.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response with conversation list and pagination info.
  */
 export const getConversations = async (req, res) => {
     try {
@@ -79,7 +85,10 @@ export const getConversations = async (req, res) => {
 };
 
 /**
- * Get a single conversation by ID (with ownership check)
+ * Retrieves a single conversation by ID with ownership verification.
+ * @param {import('express').Request} req - Express request with conversation ID param.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response with conversation details.
  */
 export const getConversationById = async (req, res) => {
     try {
@@ -118,7 +127,10 @@ export const getConversationById = async (req, res) => {
 };
 
 /**
- * Update conversation title
+ * Updates a conversation title with ownership verification.
+ * @param {import('express').Request} req - Express request with conversation ID param and new title.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response with updated conversation.
  */
 export const updateConversation = async (req, res) => {
     try {
@@ -162,7 +174,10 @@ export const updateConversation = async (req, res) => {
 };
 
 /**
- * Delete a conversation and cascade delete all its messages
+ * Deletes a conversation and cascade-deletes all its messages.
+ * @param {import('express').Request} req - Express request with conversation ID param.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response confirming deletion.
  */
 export const deleteConversation = async (req, res) => {
     try {

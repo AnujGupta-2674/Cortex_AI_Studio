@@ -2,7 +2,10 @@ import Message from "../models/message.model.js";
 import Conversation from "../models/conversation.model.js";
 
 /**
- * Send / Append a message to a conversation
+ * Appends a message to a conversation, updates timestamp, and auto-titles if new.
+ * @param {import('express').Request} req - Express request with conversationId param and message body.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response with created message.
  */
 export const sendMessage = async (req, res) => {
     try {
@@ -64,7 +67,10 @@ export const sendMessage = async (req, res) => {
 };
 
 /**
- * Get all messages for a specific conversation (chronologically ordered)
+ * Retrieves chronologically sorted messages for a conversation with pagination.
+ * @param {import('express').Request} req - Express request with conversationId param and pagination queries.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response with messages and pagination metadata.
  */
 export const getMessages = async (req, res) => {
     try {
@@ -123,7 +129,10 @@ export const getMessages = async (req, res) => {
 };
 
 /**
- * Delete a single message by ID
+ * Deletes a single message by ID after verifying conversation ownership.
+ * @param {import('express').Request} req - Express request with messageId param.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response confirming message deletion.
  */
 export const deleteMessage = async (req, res) => {
     try {
@@ -166,7 +175,10 @@ export const deleteMessage = async (req, res) => {
 };
 
 /**
- * Clear all messages in a conversation without deleting conversation itself
+ * Clears all messages in a conversation without removing the conversation record.
+ * @param {import('express').Request} req - Express request with conversationId param.
+ * @param {import('express').Response} res - Express response object.
+ * @returns {Promise<import('express').Response>} JSON response confirming history clearance.
  */
 export const clearMessages = async (req, res) => {
     try {
