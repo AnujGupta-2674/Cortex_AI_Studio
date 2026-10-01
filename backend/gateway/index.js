@@ -18,7 +18,22 @@ app.use(cors({
 
 app.use("/api/auth", proxy(process.env.AUTH_SERVICE));
 
+app.use(
+    "/api/chat",
+    authMiddleware,
+    proxy(process.env.CHAT_SERVICE || "http://localhost:8002", {
+        proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
+            if (srcReq.user) {
+                proxyReqOpts.headers["x-user-id"] = srcReq.user.userId;
+                proxyReqOpts.headers["x-user"] = JSON.stringify(srcReq.user);
+            }
+            return proxyReqOpts;
+        },
+    })
+);
+
 app.get('/api/me', authMiddleware, getCurrentUser);
+
 
 app.listen(PORT, () => {
     console.log(`Gateway is running on port: ${PORT}`);
