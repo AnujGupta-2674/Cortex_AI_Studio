@@ -52,6 +52,7 @@ export const sendMessage = async (req, res) => {
             message: "Message created successfully",
             data: message,
         });
+
     } catch (error) {
         console.error("Error creating message:", error);
         return res.status(500).json({
@@ -110,6 +111,7 @@ export const getMessages = async (req, res) => {
                 totalPages: Math.ceil(total / limit) || 1,
             },
         });
+
     } catch (error) {
         console.error("Error fetching messages:", error);
         return res.status(500).json({
@@ -152,6 +154,7 @@ export const deleteMessage = async (req, res) => {
             success: true,
             message: "Message deleted successfully",
         });
+
     } catch (error) {
         console.error("Error deleting message:", error);
         return res.status(500).json({
@@ -193,6 +196,7 @@ export const clearMessages = async (req, res) => {
             success: true,
             message: "All messages in conversation deleted successfully",
         });
+        
     } catch (error) {
         console.error("Error clearing messages:", error);
         return res.status(500).json({
