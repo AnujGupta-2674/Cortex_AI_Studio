@@ -32,6 +32,20 @@ app.use(
     })
 );
 
+app.use(
+    "/api/agent",
+    authMiddleware,
+    proxy(process.env.AGENT_SERVICE || "http://localhost:8003", {
+        proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
+            if (srcReq.user) {
+                proxyReqOpts.headers["x-user-id"] = srcReq.user.userId;
+                proxyReqOpts.headers["x-user"] = JSON.stringify(srcReq.user);
+            }
+            return proxyReqOpts;
+        },
+    })
+);
+
 app.get('/api/me', authMiddleware, getCurrentUser);
 
 
