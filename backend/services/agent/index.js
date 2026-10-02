@@ -2,6 +2,7 @@ import express from 'express';
 import "dotenv/config";
 import mongoose from 'mongoose';
 import connectToDB from './config/db.js';
+import agentRoutes from './routes/agent.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 8003;
@@ -20,7 +21,13 @@ app.get(['/health', '/api/agent/health'], (req, res) => {
     });
 });
 
-// Start server
+// Agent routes (mounted flexibly for proxy and direct requests)
+app.use('/agent', agentRoutes);
+app.use('/api/agent', agentRoutes);
+app.use('/', agentRoutes);
+
+
+// Start server only after establishing database connection
 let server;
 
 async function startServer() {
