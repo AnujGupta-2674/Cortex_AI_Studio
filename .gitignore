@@ -45,6 +45,8 @@ Thumbs.db
 *.sln
 *.sw?
 
-# Documentation
+# Documentation & Readmes
 docs/
-
+**/docs/
+*.md
+**/*.md

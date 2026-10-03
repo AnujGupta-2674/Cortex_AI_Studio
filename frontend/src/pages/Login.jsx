@@ -1,4 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { 
   loginWithGoogle, 
   logoutUser, 
@@ -11,19 +12,24 @@ import {
 
 export const Login = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const user = useSelector(selectCurrentUser);
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const loading = useSelector(selectAuthLoading);
   const error = useSelector(selectAuthError);
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     dispatch(clearError());
-    dispatch(loginWithGoogle());
+    const res = await dispatch(loginWithGoogle());
+    if (loginWithGoogle.fulfilled.match(res)) {
+      navigate('/');
+    }
   };
 
   const handleLogout = () => {
     dispatch(logoutUser());
   };
+
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center bg-[#07090e] text-slate-100 overflow-hidden font-sans selection:bg-purple-500 selection:text-white">
@@ -124,6 +130,13 @@ export const Login = () => {
               </div>
 
               <div className="space-y-3">
+                <button
+                  onClick={() => navigate('/')}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white font-semibold text-sm shadow-lg shadow-purple-600/30 transition-all duration-200 cursor-pointer active:scale-[0.99]"
+                >
+                  <span>Launch Studio Workspace &rarr;</span>
+                </button>
+
                 <button
                   onClick={handleLogout}
                   disabled={loading}

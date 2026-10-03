@@ -87,7 +87,7 @@ const initialState = {
   token: null,
   isAuthenticated: Boolean(cachedUser),
   loading: false,
-  isCheckingAuth: true,
+  isCheckingAuth: !cachedUser,
   error: null,
 };
 
@@ -130,7 +130,10 @@ const authSlice = createSlice({
 
       // Fetch Current User (/api/me) Lifecycle
       .addCase(fetchCurrentUser.pending, (state) => {
-        state.isCheckingAuth = true;
+        // Only set isCheckingAuth if we don't already have an active authenticated user
+        if (!state.isAuthenticated && !state.user) {
+          state.isCheckingAuth = true;
+        }
       })
       .addCase(fetchCurrentUser.fulfilled, (state, action) => {
         state.isCheckingAuth = false;
