@@ -7,6 +7,7 @@ import { imageGenAgent } from "../agents/vision.agent.js";
 import { pdfAgent } from "../agents/pdf.agent.js";
 import { pptAgent } from "../agents/ppt.agent.js";
 import { searchAgent } from "../agents/search.agent.js";
+import { memory } from "../config/memory.js";
 
 // ============================================================================
 // STEP 1: INITIALIZE THE GRAPH WORKFLOW
@@ -112,7 +113,7 @@ workFlow.addEdge("search", END);
 //   import { graph } from "./graph/graph.js";
 //   const response = await graph.invoke({ prompt: "Write a React component" });
 //   console.log(response.aiResponse);
-export const graph = workFlow.compile();
+export const graph = workFlow.compile({ checkpointer: memory });
 
 
 /*

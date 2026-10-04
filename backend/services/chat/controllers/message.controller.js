@@ -1,5 +1,6 @@
 import Message from "../models/message.model.js";
 import Conversation from "../models/conversation.model.js";
+import redis from "../../../shared/redis/redis.js";
 
 /**
  * Appends a message to a conversation, updates timestamp, and auto-titles if new.
@@ -50,6 +51,23 @@ export const sendMessage = async (req, res) => {
         conversation.updatedAt = new Date();
         await conversation.save();
 
+        // Update Redis cache asynchronously so subsequent reads hit cache immediately
+        const cacheKey = `conversation:${conversationId}:messages`;
+        try {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                const list = JSON.parse(cached);
+                const msgObj = message.toObject ? message.toObject() : message;
+                const msgId = msgObj._id ? String(msgObj._id) : null;
+                if (!msgId || !list.some((m) => String(m._id) === msgId)) {
+                    list.push(msgObj);
+                    await redis.set(cacheKey, JSON.stringify(list), "EX", 86400);
+                }
+            }
+        } catch (cacheErr) {
+            console.warn("[Redis Cache Error in sendMessage]", cacheErr.message);
+        }
+
         return res.status(201).json({
             success: true,
             message: "Message created successfully",
@@ -96,6 +114,34 @@ export const getMessages = async (req, res) => {
             });
         }
 
+        const cacheKey = `conversation:${conversationId}:messages`;
+
+        // 1. Check Redis cache first for standard first-page requests (CACHE HIT)
+        if (page === 1) {
+            try {
+                const cached = await redis.get(cacheKey);
+                if (cached) {
+                    const cachedMessages = JSON.parse(cached);
+                    if (Array.isArray(cachedMessages)) {
+                        return res.status(200).json({
+                            success: true,
+                            fromCache: true,
+                            messages: cachedMessages.slice(0, limit),
+                            pagination: {
+                                total: cachedMessages.length,
+                                page: 1,
+                                limit,
+                                totalPages: Math.ceil(cachedMessages.length / limit) || 1,
+                            },
+                        });
+                    }
+                }
+            } catch (cacheErr) {
+                console.warn("[Redis Cache Read Error in getMessages]", cacheErr.message);
+            }
+        }
+
+        // 2. Cache Miss: Query MongoDB
         const skip = (page - 1) * limit;
 
         const [messages, total] = await Promise.all([
@@ -107,8 +153,18 @@ export const getMessages = async (req, res) => {
             Message.countDocuments({ conversationId }),
         ]);
 
+        // Populate Redis cache for next time
+        if (page === 1 && messages.length > 0) {
+            try {
+                await redis.set(cacheKey, JSON.stringify(messages), "EX", 86400);
+            } catch (cacheErr) {
+                console.warn("[Redis Cache Set Error in getMessages]", cacheErr.message);
+            }
+        }
+
         return res.status(200).json({
             success: true,
+            fromCache: false,
             messages,
             pagination: {
                 total,
@@ -159,6 +215,13 @@ export const deleteMessage = async (req, res) => {
 
         await Message.findByIdAndDelete(messageId);
 
+        // Invalidate Redis cache so stale messages are not served
+        try {
+            await redis.del(`conversation:${message.conversationId}:messages`);
+        } catch (cacheErr) {
+            console.warn("[Redis Cache Error in deleteMessage]", cacheErr.message);
+        }
+
         return res.status(200).json({
             success: true,
             message: "Message deleted successfully",
@@ -203,6 +266,13 @@ export const clearMessages = async (req, res) => {
         }
 
         await Message.deleteMany({ conversationId });
+
+        // Invalidate Redis cache
+        try {
+            await redis.del(`conversation:${conversationId}:messages`);
+        } catch (cacheErr) {
+            console.warn("[Redis Cache Error in clearMessages]", cacheErr.message);
+        }
 
         return res.status(200).json({
             success: true,

@@ -1,5 +1,6 @@
 import Conversation from "../models/conversation.model.js";
 import Message from "../models/message.model.js";
+import redis from "../../../shared/redis/redis.js";
 
 /**
  * Creates a new conversation for the authenticated user.
@@ -203,6 +204,13 @@ export const deleteConversation = async (req, res) => {
         // Cascade delete all associated messages
         await Message.deleteMany({ conversationId: id });
         await Conversation.findByIdAndDelete(id);
+
+        // Invalidate Redis cache
+        try {
+            await redis.del(`conversation:${id}:messages`);
+        } catch (cacheErr) {
+            console.warn("[Redis Cache Error in deleteConversation]", cacheErr.message);
+        }
 
         return res.status(200).json({
             success: true,
