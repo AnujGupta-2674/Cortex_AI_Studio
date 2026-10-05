@@ -113,6 +113,7 @@ const initialState = {
   code: DEFAULT_SAMPLE_CODE,
   mode: 'preview', // 'preview' | 'code'
   viewMode: 'desktop', // 'desktop' | 'tablet' | 'mobile'
+  agent: null, // 'pdf' | 'ppt' | 'coding' | null
 };
 
 const artifactSlice = createSlice({
@@ -126,6 +127,7 @@ const artifactSlice = createSlice({
         if (action.payload.language) state.language = action.payload.language;
         if (action.payload.code) state.code = action.payload.code;
         if (action.payload.mode) state.mode = action.payload.mode;
+        state.agent = action.payload.agent || null;
       }
     },
     closeArtifact(state) {

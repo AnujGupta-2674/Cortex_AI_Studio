@@ -11,15 +11,15 @@ import { buildPreviewHtml, buildPresentationNewTabHtml } from '../utils/codePars
 
 export const ArtifactPanel = () => {
   const dispatch = useDispatch();
-  const { isOpen, title, language, code, mode, viewMode } = useSelector(selectArtifactData);
+  const { isOpen, title, language, code, mode, viewMode, agent } = useSelector(selectArtifactData);
 
   const [copied, setCopied] = useState(false);
   const [iframeKey, setIframeKey] = useState(1);
   const [isEditable, setIsEditable] = useState(false);
   const iframeRef = useRef(null);
 
-  const isPdfArtifact = /pdf|document|invoice|report|a4/i.test(title) || /@media\s+print|page-break|window\.print/i.test(code);
-  const isPptArtifact = /presentation|slide|deck|keynote/i.test(title) || /currentSlide|showSlide|aspect-ratio:\s*16/i.test(code);
+  const isPdfArtifact = agent === 'pdf' || /pdf|document|invoice|report|a4/i.test(title) || /@media\s+print|page-break|window\.print/i.test(code);
+  const isPptArtifact = agent === 'ppt' || /presentation|slide|deck|keynote/i.test(title) || /currentSlide|showSlide|aspect-ratio:\s*16/i.test(code);
 
   useEffect(() => {
     // Force iframe refresh when code or mode changes
@@ -171,8 +171,8 @@ export const ArtifactPanel = () => {
 
         {/* Action Controls */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Quick PDF Print / Save Action (Hidden for PPT presentations) */}
-          {mode === 'preview' && !isPptArtifact && (
+          {/* Quick PDF Print / Save Action (ONLY shown when user requested a PDF artifact) */}
+          {mode === 'preview' && isPdfArtifact && (
             <button
               onClick={handlePrint}
               title="Print or Save as PDF"

@@ -273,6 +273,7 @@ export const ChatMessage = ({ message, user, onStreamTick }) => {
         language,
         code,
         mode: 'preview',
+        agent: message.agent || (isPdf ? 'pdf' : isPpt ? 'ppt' : null),
       })
     );
   };
