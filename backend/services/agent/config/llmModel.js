@@ -12,7 +12,13 @@ export const gemini = new ChatGoogleGenerativeAI({
     model: "gemini-2.5-flash",
     temperature: 0,
     maxRetries: 2
-})
+});
+
+export const geminiSearch = new ChatGoogleGenerativeAI({
+    model: "gemini-2.5-flash",
+    temperature: 0.1,
+    maxRetries: 2
+}).bindTools([{ googleSearch: {} }]);
 
 export const getModel = async (agent) => {
     switch (agent) {
@@ -27,8 +33,8 @@ export const getModel = async (agent) => {
         case "ppt":
             return gemini;
         case "search":
-            return groq;
+            return geminiSearch;
         default:
             return groq;
     }
-}
+};

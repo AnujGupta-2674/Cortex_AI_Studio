@@ -14,18 +14,18 @@ const STARTER_PROMPTS = [
     prompt: 'Create a complete self-contained HTML/CSS/JavaScript interactive counter and timer widget with modern dark glassmorphic styling, increment/decrement buttons, and a reset button. Put the entire code in an html code block so it can be previewed live.',
   },
   {
-    icon: '🎨',
-    title: 'Glassmorphism Weather Card',
-    desc: 'Design a sleek glowing weather card with temperature toggle and animated CSS clouds.',
-    agent: 'coding',
-    prompt: 'Write a self-contained HTML and CSS component for a modern glassmorphic Weather Card with temperature, humidity, wind speed, and animated gradient background. Return the full code in an html block.',
+    icon: '📊',
+    title: 'Interactive Pitch Deck',
+    desc: 'Generate a 5-slide widescreen interactive presentation deck with keyboard controls and live animations.',
+    agent: 'ppt',
+    prompt: 'Create a 5-slide interactive presentation deck for Cortex AI: An Autonomous Multi-Agent AI Platform. Include a Title slide, Market Problem, Solution Architecture, Key Performance Metrics, and Roadmap. Put the entire code in an html block with slide navigation and keyboard controls so it can be previewed live in the Artifact panel.',
   },
   {
-    icon: '🧠',
-    title: 'Explain Multi-Agent LangGraph',
-    desc: 'Understand how StateGraph, conditional edges, and autonomous agent hand-offs work.',
-    agent: 'chat',
-    prompt: 'Explain how LangGraph works in a microservices architecture with StateGraph, router nodes, and conditional edges. Give a clear step-by-step breakdown.',
+    icon: '📄',
+    title: 'Executive PDF Whitepaper',
+    desc: 'Generate an A4 formatted print-ready research report with styled tables, metrics, and one-click PDF printing.',
+    agent: 'pdf',
+    prompt: 'Generate an executive research whitepaper on "The Future of Autonomous AI Agent Systems in 2026". Format it as a professional A4 document with corporate branding, executive summary, KPI metric cards, comparative data table, recommendations, and print-ready CSS with a Print to PDF button. Put the entire document in an html block.',
   },
   {
     icon: '🌐',
@@ -35,6 +35,7 @@ const STARTER_PROMPTS = [
     prompt: 'What are the latest best practices and architecture patterns for building multi-agent AI platforms in 2025-2026?',
   },
 ];
+
 
 export const HeroHome = ({ user, onSelectPrompt }) => {
   const dispatch = useDispatch();

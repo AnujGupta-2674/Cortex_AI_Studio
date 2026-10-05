@@ -29,20 +29,20 @@ const AVAILABLE_AGENTS = [
     {
         id: "pdf",
         name: "PDF Document Agent",
-        description: "Document analysis, summarization, and PDF question-answering",
+        description: "Professional PDF reports, invoices, whitepapers, and printable documents",
         model: "Gemini (gemini-2.5-flash)"
     },
     {
         id: "ppt",
         name: "Presentation Agent",
-        description: "Slide deck and presentation outline creation",
+        description: "Interactive 16:9 presentation slide decks, keynotes, and pitch decks",
         model: "Gemini (gemini-2.5-flash)"
     },
     {
         id: "search",
         name: "Web Search Agent",
         description: "Live internet search and real-time knowledge retrieval",
-        model: "Groq (openai/gpt-oss-120b)"
+        model: "Gemini + Google Search Grounding"
     }
 ];
 
@@ -170,7 +170,7 @@ export const runAgent = async (req, res) => {
             }
         }
 
-        // 5. Return complete structured response with conversation & message details
+        // 6. Return complete structured response with conversation & message details
         return res.status(200).json({
             success: true,
             data: {
@@ -178,6 +178,8 @@ export const runAgent = async (req, res) => {
                 prompt: result.prompt,
                 agent: result.agent,
                 response: aiResponse,
+                sources: result.sources || [],
+                searchQueries: result.searchQueries || [],
                 messages: {
                     user: savedUserMessage,
                     assistant: savedAssistantMessage

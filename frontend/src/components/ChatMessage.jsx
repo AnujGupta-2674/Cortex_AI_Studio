@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import { openArtifact } from '../redux/slices/artifactSlice.js';
 import { markMessageStreamed } from '../redux/slices/chatSlice.js';
-import { parseMarkdownSegments } from '../utils/codeParser.js';
+import { parseMarkdownSegments, buildPreviewHtml, buildPresentationNewTabHtml } from '../utils/codeParser.js';
 
 // Pulsing Typewriter Cursor
 const StreamingCursor = () => (
@@ -12,11 +12,11 @@ const StreamingCursor = () => (
   />
 );
 
-// Formats inline markdown elements (bold, italic, inline code)
+// Formats inline markdown elements (links, bold, italic, inline code)
 const renderInlineStyles = (str) => {
   if (!str) return '';
   const parts = [];
-  const regex = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g;
+  const regex = /(\[[^\]]+\]\([^\)]+\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g;
   let lastIdx = 0;
   let match;
 
@@ -25,7 +25,31 @@ const renderInlineStyles = (str) => {
       parts.push(str.slice(lastIdx, match.index));
     }
     const token = match[0];
-    if (token.startsWith('`') && token.endsWith('`')) {
+    if (token.startsWith('[') && token.includes('](')) {
+      const linkMatch = token.match(/^\[(.*?)\]\((.*?)\)$/);
+      if (linkMatch) {
+        const text = linkMatch[1];
+        const href = linkMatch[2];
+        parts.push(
+          <a
+            key={match.index}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition-colors inline-flex items-center gap-1 font-medium hover:opacity-90"
+          >
+            <span>{text}</span>
+            <svg className="w-3 h-3 inline opacity-70 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </a>
+        );
+      } else {
+        parts.push(token);
+      }
+    } else if (token.startsWith('`') && token.endsWith('`')) {
       parts.push(
         <code
           key={match.index}
@@ -56,6 +80,7 @@ const renderInlineStyles = (str) => {
 
   return parts.length > 0 ? parts : str;
 };
+
 
 // Formats text block with paragraphs, headers, bullet lists
 const FormattedTextBlock = ({ text, isStreaming, isLastSegment }) => {
@@ -228,9 +253,19 @@ export const ChatMessage = ({ message, user, onStreamTick }) => {
 
   const handleOpenArtifact = (code, language) => {
     let title = 'Live Component';
-    if (language === 'html') title = 'HTML5 Component';
-    if (language === 'jsx') title = 'React Component';
-    if (language === 'svg') title = 'Vector Graphics';
+    const isPdf = /page-break|@media\s+print|pdf-document|invoice|a4/i.test(code) || message.agent === 'pdf';
+    const isPpt = /slide|deck|presentation|currentSlide/i.test(code) || message.agent === 'ppt';
+
+    if (isPdf) title = 'Printable PDF Document';
+    else if (isPpt) title = 'Interactive Presentation Deck';
+    else if (language === 'html') title = 'HTML5 Component';
+    else if (language === 'jsx') title = 'React Component';
+    else if (language === 'svg') title = 'Vector Graphics';
+
+    const titleComment = code.match(/^\/\/\s*(?:Title|Name):\s*(.+)$/m) || code.match(/^<!--\s*(?:Title|Name):\s*(.+)\s*-->/m);
+    if (titleComment && titleComment[1]) {
+      title = titleComment[1].trim();
+    }
 
     dispatch(
       openArtifact({
@@ -240,6 +275,18 @@ export const ChatMessage = ({ message, user, onStreamTick }) => {
         mode: 'preview',
       })
     );
+  };
+
+  const handlePresentInNewTab = (code, language) => {
+    let title = 'Interactive Presentation Deck';
+    const titleComment = code.match(/^\/\/\s*(?:Title|Name):\s*(.+)$/m) || code.match(/^<!--\s*(?:Title|Name):\s*(.+)\s*-->/m);
+    if (titleComment && titleComment[1]) {
+      title = titleComment[1].trim();
+    }
+    const html = buildPresentationNewTabHtml(code, language, title);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
   };
 
   // Slice content for word-by-word typewriter rendering
@@ -309,9 +356,39 @@ export const ChatMessage = ({ message, user, onStreamTick }) => {
           <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-white tracking-tight">Cortex AI</span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
-                {message.agent ? `${message.agent.toUpperCase()} AGENT` : 'AUTONOMOUS AGENT'}
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                message.agent === 'search'
+                  ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30 shadow-sm shadow-cyan-500/10'
+                  : message.agent === 'coding'
+                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                  : message.agent === 'pdf'
+                  ? 'bg-rose-500/15 text-rose-300 border-rose-500/30 shadow-sm shadow-rose-500/10'
+                  : message.agent === 'ppt'
+                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-sm shadow-amber-500/10'
+                  : 'bg-purple-500/10 text-purple-300 border border-purple-500/20'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                  message.agent === 'search'
+                    ? 'bg-cyan-400'
+                    : message.agent === 'coding'
+                    ? 'bg-emerald-400'
+                    : message.agent === 'pdf'
+                    ? 'bg-rose-400'
+                    : message.agent === 'ppt'
+                    ? 'bg-amber-400'
+                    : 'bg-purple-400'
+                }`} />
+                {message.agent === 'search'
+                  ? '🌐 WEB SEARCH AGENT'
+                  : message.agent === 'pdf'
+                  ? '📄 PDF DOCUMENT AGENT'
+                  : message.agent === 'ppt'
+                  ? '📊 PRESENTATION AGENT'
+                  : message.agent === 'coding'
+                  ? '💻 CODING AGENT'
+                  : message.agent
+                  ? `${message.agent.toUpperCase()} AGENT`
+                  : 'AUTONOMOUS AGENT'}
               </span>
               <span className="text-[10px] text-slate-500">
                 {message.createdAt
@@ -335,6 +412,39 @@ export const ChatMessage = ({ message, user, onStreamTick }) => {
 
           {/* Formatted Message Card */}
           <div className="rounded-2xl rounded-tl-sm bg-white/[0.025] hover:bg-white/[0.035] border border-white/[0.08] backdrop-blur-xl p-5 text-slate-200 text-sm leading-relaxed shadow-xl space-y-4 transition-all duration-200">
+            {/* Interactive Verified Sources Tray */}
+            {message.sources && message.sources.length > 0 && (
+              <div className="mb-3 pb-3 border-b border-white/[0.06]">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 mb-2">
+                  <svg className="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                  <span>Verified Web Sources ({message.sources.length})</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {message.sources.map((src, sIdx) => (
+                    <a
+                      key={sIdx}
+                      href={src.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] hover:bg-cyan-500/10 border border-white/[0.08] hover:border-cyan-500/30 text-[11px] text-cyan-300 transition-all group/src cursor-pointer"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/80 group-hover/src:bg-cyan-300" />
+                      <span className="truncate max-w-[160px] font-medium">{src.title}</span>
+                      <svg className="w-2.5 h-2.5 opacity-60 group-hover/src:opacity-100 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {segments.map((seg, idx) => {
               const isLastSegment = idx === segments.length - 1;
 
@@ -350,8 +460,10 @@ export const ChatMessage = ({ message, user, onStreamTick }) => {
               }
 
               // Code block segment
-              const previewableLangs = ['html', 'htm', 'jsx', 'tsx', 'svg', 'javascript', 'js', 'css'];
+              const previewableLangs = ['html', 'htm', 'jsx', 'tsx', 'svg', 'javascript', 'js', 'css', 'pdf', 'ppt', 'presentation', 'slides'];
               const isPreviewable = previewableLangs.includes(seg.language.toLowerCase()) || /<[a-z][\s\S]*>/i.test(seg.content);
+              const isPdf = /page-break|@media\s+print|pdf-document|invoice|a4/i.test(seg.content) || message.agent === 'pdf' || seg.language === 'pdf';
+              const isPpt = /slide|deck|presentation|currentSlide/i.test(seg.content) || message.agent === 'ppt' || seg.language === 'ppt';
 
               return (
                 <div
@@ -362,7 +474,7 @@ export const ChatMessage = ({ message, user, onStreamTick }) => {
                   <div className="px-4 py-2 bg-white/[0.04] border-b border-white/[0.06] flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-mono uppercase text-slate-400 font-semibold tracking-wider">
-                        {seg.language || 'code'}
+                        {isPdf ? 'PDF / PRINT HTML' : isPpt ? 'SLIDE DECK HTML' : (seg.language || 'code')}
                       </span>
                       {seg.isIncomplete && isStreaming && (
                         <span className="inline-flex items-center gap-1 text-[10px] text-purple-400">
@@ -373,18 +485,67 @@ export const ChatMessage = ({ message, user, onStreamTick }) => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {/* Open in Artifact Button (similar to Claude / v0) */}
-                      {isPreviewable && !seg.isIncomplete && (
+                      {/* Open in Artifact / Present Buttons */}
+                      {isPreviewable && !seg.isIncomplete && isPpt ? (
+                        <>
+                          <button
+                            onClick={() => handlePresentInNewTab(seg.content, seg.language)}
+                            title="Open presentation in a new tab so you can easily return to chat"
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-medium shadow-md shadow-amber-600/30 transition-all active:scale-95 cursor-pointer"
+                          >
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                              <line x1="8" y1="21" x2="16" y2="21" />
+                            </svg>
+                            <span>Present in New Tab</span>
+                            <svg className="w-2.5 h-2.5 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                              <polyline points="15 3 21 3 21 9" />
+                              <line x1="10" y1="14" x2="21" y2="3" />
+                            </svg>
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenArtifact(seg.content, seg.language)}
+                            title="Open in Sidebar Artifact Panel"
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 text-xs font-medium transition-colors cursor-pointer"
+                          >
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="16 18 22 12 16 6" />
+                              <polyline points="8 6 2 12 8 18" />
+                            </svg>
+                            <span>Sidebar</span>
+                          </button>
+                        </>
+                      ) : isPreviewable && !seg.isIncomplete && (
                         <button
                           onClick={() => handleOpenArtifact(seg.content, seg.language)}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white text-xs font-medium shadow-md shadow-purple-600/30 transition-all active:scale-95 cursor-pointer"
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-white text-xs font-medium shadow-md transition-all active:scale-95 cursor-pointer ${
+                            isPdf
+                              ? 'bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 shadow-rose-600/30'
+                              : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 shadow-purple-600/30'
+                          }`}
                         >
-                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polygon points="5 3 19 12 5 21 5 3" />
-                          </svg>
-                          <span>Open in Artifact</span>
+                          {isPdf ? (
+                            <>
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                              </svg>
+                              <span>Preview &amp; Print PDF</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polygon points="5 3 19 12 5 21 5 3" />
+                              </svg>
+                              <span>Open in Artifact</span>
+                            </>
+                          )}
                         </button>
                       )}
+
 
                       <button
                         onClick={() => handleCopyCode(seg.content, idx)}

@@ -84,21 +84,20 @@ workFlow.addConditionalEdges(
 // ============================================================================
 // STEP 5: CONNECTING EDGES (HAND-OFF BETWEEN AGENTS)
 // ============================================================================
-// After "search" finishes fetching web data, it forwards its results to "chat"
-// so the chat agent can summarize the findings nicely for the user.
+// After "search" finishes fetching web data, it forwards its results and sources
+// to "chat" so the chat agent can summarize the findings nicely for the user.
 workFlow.addEdge("search", "chat");
 
 // ============================================================================
 // STEP 6: EXIT POINTS (COMPLETING THE WORKFLOW)
 // ============================================================================
 // Once a specialist finishes their work, we route them to the "END" marker.
-// Reaching "END" tells LangGraph that the workflow is complete and ready to return.
+// Note: "search" routes to "chat", so "chat" is the exit node for search results.
 workFlow.addEdge("chat", END);
 workFlow.addEdge("coding", END);
 workFlow.addEdge("vision", END);
 workFlow.addEdge("pdf", END);
 workFlow.addEdge("ppt", END);
-workFlow.addEdge("search", END);
 
 // ============================================================================
 // STEP 7: COMPILE & EXPORT THE RUNNABLE GRAPH

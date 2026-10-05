@@ -19,17 +19,31 @@ export const extractCodeBlocks = (text) => {
     const code = match[2].trim();
     
     // Check if previewable in artifact preview iframe
-    const previewableLangs = ['html', 'htm', 'xml', 'svg', 'javascript', 'js', 'jsx', 'tsx', 'css'];
+    const previewableLangs = [
+      'html', 'htm', 'xml', 'svg', 'javascript', 'js', 'jsx', 'tsx', 'css',
+      'pdf', 'ppt', 'presentation', 'slides', 'document'
+    ];
     const hasHtmlTags = /<[a-z][\s\S]*>/i.test(code);
     const isPreviewable = previewableLangs.includes(lang) || hasHtmlTags;
 
     let inferredTitle = 'Generated Code';
-    if (lang === 'html' || lang === 'htm') inferredTitle = 'HTML Component';
-    else if (lang === 'jsx' || lang === 'tsx') inferredTitle = 'React Component';
-    else if (lang === 'svg') inferredTitle = 'Vector Graphic';
-    else if (lang === 'javascript' || lang === 'js') inferredTitle = 'JavaScript Script';
-    else if (lang === 'python' || lang === 'py') inferredTitle = 'Python Algorithm';
-    else if (lang === 'css') inferredTitle = 'Stylesheet';
+    if (lang === 'pdf' || (hasHtmlTags && (/page-break|@media\s+print|pdf-document|invoice|a4/i.test(code)))) {
+      inferredTitle = 'Printable PDF Document';
+    } else if (lang === 'ppt' || lang === 'slides' || lang === 'presentation' || (hasHtmlTags && (/slide|deck|presentation|currentSlide/i.test(code)))) {
+      inferredTitle = 'Interactive Presentation Deck';
+    } else if (lang === 'html' || lang === 'htm') {
+      inferredTitle = 'Interactive Component';
+    } else if (lang === 'jsx' || lang === 'tsx') {
+      inferredTitle = 'React Component';
+    } else if (lang === 'svg') {
+      inferredTitle = 'Vector Graphic';
+    } else if (lang === 'javascript' || lang === 'js') {
+      inferredTitle = 'JavaScript Script';
+    } else if (lang === 'python' || lang === 'py') {
+      inferredTitle = 'Python Algorithm';
+    } else if (lang === 'css') {
+      inferredTitle = 'Stylesheet';
+    }
 
     // Try to extract title from comments
     const titleComment = code.match(/^\/\/\s*(?:Title|Name):\s*(.+)$/m) || code.match(/^<!--\s*(?:Title|Name):\s*(.+)\s*-->/m);
@@ -38,7 +52,7 @@ export const extractCodeBlocks = (text) => {
     }
 
     blocks.push({
-      language: lang || 'javascript',
+      language: lang === 'pdf' || lang === 'ppt' ? 'html' : (lang || 'html'),
       code,
       title: inferredTitle,
       isPreviewable,
@@ -47,6 +61,7 @@ export const extractCodeBlocks = (text) => {
 
   return blocks;
 };
+
 
 /**
  * Generates an executable HTML string for iframe srcDoc
@@ -59,7 +74,34 @@ export const buildPreviewHtml = (code, language = 'html') => {
 
   // If already a full HTML document
   if (code.includes('<!DOCTYPE html>') || (code.includes('<html') && code.includes('</html>'))) {
-    return code;
+    // Inject click interceptor for presentations previewed inside an iframe
+    const iframeInterceptor = `
+<script>
+  (function() {
+    if (window.self !== window.top) {
+      document.addEventListener('click', function(e) {
+        const target = e.target.closest('button, a, [role="button"]');
+        if (!target) return;
+        const text = (target.textContent || '').trim().toLowerCase();
+        const id = (target.id || '').toLowerCase();
+        const cls = (target.className || '').toString().toLowerCase();
+        if (text.includes('present') || id.includes('present') || cls.includes('present') ||
+            text.includes('fullscreen') || id.includes('fullscreen')) {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            window.parent.postMessage({ type: 'CORTEX_PRESENT_NEW_TAB' }, '*');
+          } catch(err) {}
+        }
+      }, true);
+    }
+  })();
+</script>
+`;
+    if (code.includes('</body>')) {
+      return code.replace('</body>', `${iframeInterceptor}</body>`);
+    }
+    return code + iframeInterceptor;
   }
 
   // If SVG
@@ -161,6 +203,58 @@ export const buildPreviewHtml = (code, language = 'html') => {
   ${code}
 </body>
 </html>`;
+};
+
+/**
+ * Builds standalone presentation HTML for opening in a new tab.
+ * Injects a floating "Return to Cortex AI Chat" button so the user can easily
+ * close the tab and return to their conversation without losing chat context.
+ */
+export const buildPresentationNewTabHtml = (code, language = 'html', title = 'Interactive Presentation Deck') => {
+  let baseHtml = buildPreviewHtml(code, language);
+
+  const returnBanner = `
+<div id="cortex-return-banner" style="position:fixed;top:14px;left:16px;z-index:9999999;display:flex;align-items:center;gap:10px;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;pointer-events:auto;">
+  <button id="cortex-close-btn" title="Close presentation and return to Cortex AI Chat" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:9999px;background:rgba(15,23,42,0.92);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.22);color:#f1f5f9;font-size:12px;font-weight:600;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.5);transition:all 0.2s;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+    <span id="cortex-close-text">← Return to Cortex AI Chat</span>
+  </button>
+  <span style="font-size:11px;color:rgba(255,255,255,0.6);background:rgba(0,0,0,0.45);padding:4px 10px;border-radius:9999px;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.08);">
+    New Tab &bull; Press ESC to exit fullscreen
+  </span>
+</div>
+<script>
+  (function() {
+    const btn = document.getElementById('cortex-close-btn');
+    const txt = document.getElementById('cortex-close-text');
+    if (btn) {
+      btn.addEventListener('click', function() {
+        try {
+          window.close();
+        } catch(e) {}
+        setTimeout(function() {
+          if (txt) txt.textContent = 'Switch browser tab to return to Cortex AI';
+        }, 300);
+      });
+    }
+  })();
+</script>
+`;
+
+  // Ensure title is set for browser tab header
+  if (!baseHtml.includes('<title>')) {
+    if (baseHtml.includes('<head>')) {
+      baseHtml = baseHtml.replace('<head>', `<head><title>${title} - Cortex AI</title>`);
+    } else {
+      baseHtml = `<title>${title} - Cortex AI</title>` + baseHtml;
+    }
+  }
+
+  // Inject return banner before </body> or at the end
+  if (baseHtml.includes('</body>')) {
+    return baseHtml.replace('</body>', `${returnBanner}</body>`);
+  }
+  return baseHtml + returnBanner;
 };
 
 /**

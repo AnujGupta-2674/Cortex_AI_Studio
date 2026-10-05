@@ -277,6 +277,9 @@ const chatSlice = createSlice({
         if (data.messages?.assistant) {
           state.messages.push({
             ...data.messages.assistant,
+            agent: data.agent,
+            sources: data.sources || [],
+            searchQueries: data.searchQueries || [],
             isNew: true,
           });
         } else if (data.response) {
@@ -285,6 +288,8 @@ const chatSlice = createSlice({
             role: 'assistant',
             content: data.response,
             agent: data.agent,
+            sources: data.sources || [],
+            searchQueries: data.searchQueries || [],
             createdAt: new Date().toISOString(),
             isNew: true,
           });

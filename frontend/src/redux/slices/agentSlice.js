@@ -30,18 +30,18 @@ const FALLBACK_AGENTS = [
     id: 'search',
     name: 'Web Search Agent',
     description: 'Live web scraping and real-time internet knowledge synthesis',
-    model: 'Groq (openai/gpt-oss-120b)'
+    model: 'Gemini + Google Search Grounding'
   },
   {
     id: 'pdf',
     name: 'PDF Document Agent',
-    description: 'Deep document analysis, citations, and multi-page summarization',
+    description: 'Interactive PDF reports, whitepapers, invoices, and printable documents',
     model: 'Gemini (gemini-2.5-flash)'
   },
   {
     id: 'ppt',
     name: 'Presentation Agent',
-    description: 'Structured slide outlines, keynote designs, and presentation decks',
+    description: 'Interactive 16:9 presentation slide decks, keynotes, and pitch decks',
     model: 'Gemini (gemini-2.5-flash)'
   }
 ];

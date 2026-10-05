@@ -7,7 +7,7 @@ import {
   setViewMode,
   updateCode,
 } from '../redux/slices/artifactSlice.js';
-import { buildPreviewHtml } from '../utils/codeParser.js';
+import { buildPreviewHtml, buildPresentationNewTabHtml } from '../utils/codeParser.js';
 
 export const ArtifactPanel = () => {
   const dispatch = useDispatch();
@@ -18,10 +18,33 @@ export const ArtifactPanel = () => {
   const [isEditable, setIsEditable] = useState(false);
   const iframeRef = useRef(null);
 
+  const isPdfArtifact = /pdf|document|invoice|report|a4/i.test(title) || /@media\s+print|page-break|window\.print/i.test(code);
+  const isPptArtifact = /presentation|slide|deck|keynote/i.test(title) || /currentSlide|showSlide|aspect-ratio:\s*16/i.test(code);
+
   useEffect(() => {
     // Force iframe refresh when code or mode changes
     setIframeKey((prev) => prev + 1);
   }, [code, mode]);
+
+  const handleOpenNewTab = () => {
+    const html = isPptArtifact
+      ? buildPresentationNewTabHtml(code, language, title || 'Interactive Presentation Deck')
+      : buildPreviewHtml(code, language);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
+
+  useEffect(() => {
+    // Listen for presentation "Present" or "Fullscreen" requests from inside the preview iframe
+    const handleIframeMessage = (event) => {
+      if (event.data?.type === 'CORTEX_PRESENT_NEW_TAB') {
+        handleOpenNewTab();
+      }
+    };
+    window.addEventListener('message', handleIframeMessage);
+    return () => window.removeEventListener('message', handleIframeMessage);
+  }, [code, language, title, isPptArtifact]);
 
   if (!isOpen) return null;
 
@@ -35,14 +58,31 @@ export const ArtifactPanel = () => {
     setIframeKey((prev) => prev + 1);
   };
 
-  const handleOpenNewTab = () => {
-    const html = buildPreviewHtml(code, language);
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+  const previewHtml = buildPreviewHtml(code, language);
+
+  const handlePrint = () => {
+    try {
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.focus();
+        iframeRef.current.contentWindow.print();
+      } else {
+        window.print();
+      }
+    } catch {
+      window.print();
+    }
   };
 
-  const previewHtml = buildPreviewHtml(code, language);
+  const handleFullscreen = () => {
+    const el = iframeRef.current;
+    if (el) {
+      if (el.requestFullscreen) {
+        el.requestFullscreen();
+      } else if (el.webkitRequestFullscreen) {
+        el.webkitRequestFullscreen();
+      }
+    }
+  };
 
   return (
     <aside className="w-full lg:w-[48%] xl:w-[50%] h-full flex flex-col bg-[#090c14] border-l border-white/[0.08] backdrop-blur-2xl z-20 shadow-2xl transition-all duration-300">
@@ -50,20 +90,50 @@ export const ArtifactPanel = () => {
       <div className="px-4 py-3 border-b border-white/[0.08] bg-[#07090e]/90 flex items-center justify-between gap-3">
         {/* Artifact Title and Language */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="p-1.5 rounded-lg bg-gradient-to-tr from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 text-cyan-300 shrink-0">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="16 18 22 12 16 6" />
-              <polyline points="8 6 2 12 8 18" />
-            </svg>
+          <div className={`p-1.5 rounded-lg border shrink-0 ${
+            isPdfArtifact
+              ? 'bg-rose-500/20 border-rose-500/30 text-rose-300'
+              : isPptArtifact
+              ? 'bg-amber-500/20 border-amber-500/30 text-amber-300'
+              : 'bg-gradient-to-tr from-cyan-500/20 to-purple-500/20 border-cyan-500/30 text-cyan-300'
+          }`}>
+            {isPdfArtifact ? (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+            ) : isPptArtifact ? (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+            )}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-semibold text-white truncate">{title || 'Live Artifact'}</h2>
-              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-300 border border-white/[0.1]">
-                {language || 'html'}
+              <span className={`text-[10px] uppercase font-mono px-1.5 py-0.5 rounded border ${
+                isPdfArtifact
+                  ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                  : isPptArtifact
+                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                  : 'bg-white/[0.06] text-slate-300 border-white/[0.1]'
+              }`}>
+                {isPdfArtifact ? 'PDF Doc' : isPptArtifact ? 'Slide Deck' : (language || 'html')}
               </span>
             </div>
-            <p className="text-[10px] text-slate-400">Interactive Code Preview</p>
+            <p className="text-[10px] text-slate-400">
+              {isPdfArtifact ? 'Print-Ready PDF Document' : isPptArtifact ? 'Interactive 16:9 Presentation' : 'Interactive Code Preview'}
+            </p>
           </div>
         </div>
 
@@ -101,6 +171,43 @@ export const ArtifactPanel = () => {
 
         {/* Action Controls */}
         <div className="flex items-center gap-1 shrink-0">
+          {/* Quick PDF Print / Save Action (Hidden for PPT presentations) */}
+          {mode === 'preview' && !isPptArtifact && (
+            <button
+              onClick={handlePrint}
+              title="Print or Save as PDF"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-medium transition-colors cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6 9 6 2 18 2 18 9" />
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                <rect x="6" y="14" width="12" height="8" />
+              </svg>
+              <span className="hidden sm:inline">Print / PDF</span>
+            </button>
+          )}
+
+          {/* Quick Present in New Tab Action for PPT */}
+          {mode === 'preview' && isPptArtifact && (
+            <button
+              onClick={handleOpenNewTab}
+              title="Open presentation in a new tab so you can easily return to chat"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-semibold shadow-md shadow-amber-600/30 transition-all active:scale-95 cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+              <span>Present in New Tab</span>
+              <svg className="w-3 h-3 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </button>
+          )}
+
           {mode === 'preview' && (
             <button
               onClick={handleRefreshPreview}
@@ -156,6 +263,7 @@ export const ArtifactPanel = () => {
           </button>
         </div>
       </div>
+
 
       {/* Sub-header Toolbar (Viewport Switcher for preview or Edit toggle for code) */}
       <div className="px-4 py-2 border-b border-white/[0.04] bg-[#07090e]/60 flex items-center justify-between text-xs text-slate-400">
@@ -242,7 +350,7 @@ export const ArtifactPanel = () => {
                 ref={iframeRef}
                 srcDoc={previewHtml}
                 title="Cortex Artifact Preview"
-                sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
+                sandbox="allow-scripts allow-modals allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
                 className="w-full flex-1 border-0 bg-[#090d16]"
               />
             </div>
