@@ -413,7 +413,7 @@ export const ChatMessage = ({ message, user, onStreamTick }) => {
           {/* Formatted Message Card */}
           <div className="rounded-2xl rounded-tl-sm bg-white/[0.025] hover:bg-white/[0.035] border border-white/[0.08] backdrop-blur-xl p-5 text-slate-200 text-sm leading-relaxed shadow-xl space-y-4 transition-all duration-200">
             {/* Interactive Verified Sources Tray */}
-            {message.sources && message.sources.length > 0 && (
+            {Array.isArray(message.sources) && message.sources.length > 0 && (
               <div className="mb-3 pb-3 border-b border-white/[0.06]">
                 <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 mb-2">
                   <svg className="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -424,23 +424,26 @@ export const ChatMessage = ({ message, user, onStreamTick }) => {
                   <span>Verified Web Sources ({message.sources.length})</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {message.sources.map((src, sIdx) => (
-                    <a
-                      key={sIdx}
-                      href={src.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] hover:bg-cyan-500/10 border border-white/[0.08] hover:border-cyan-500/30 text-[11px] text-cyan-300 transition-all group/src cursor-pointer"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/80 group-hover/src:bg-cyan-300" />
-                      <span className="truncate max-w-[160px] font-medium">{src.title}</span>
-                      <svg className="w-2.5 h-2.5 opacity-60 group-hover/src:opacity-100 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                        <polyline points="15 3 21 3 21 9" />
-                        <line x1="10" y1="14" x2="21" y2="3" />
-                      </svg>
-                    </a>
-                  ))}
+                  {message.sources.map((src, sIdx) => {
+                    if (!src || !src.url) return null;
+                    return (
+                      <a
+                        key={src.url || sIdx}
+                        href={src.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] hover:bg-cyan-500/10 border border-white/[0.08] hover:border-cyan-500/30 text-[11px] text-cyan-300 transition-all group/src cursor-pointer"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/80 group-hover/src:bg-cyan-300" />
+                        <span className="truncate max-w-[160px] font-medium">{src.title || 'Source'}</span>
+                        <svg className="w-2.5 h-2.5 opacity-60 group-hover/src:opacity-100 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                          <polyline points="15 3 21 3 21 9" />
+                          <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             )}
