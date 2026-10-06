@@ -45,6 +45,7 @@ Requirements:
        - CRITICAL RULE: NEVER replace or redirect the current window (never do \`window.location = ...\`). The user must always be able to easily return to their Cortex AI chat conversation.
      * Keyboard Navigation: Listen to \`keydown\` events for \`ArrowRight\`, \`ArrowLeft\`, \`Space\` (next), and \`Backspace\` (prev).
      * Slide Transition: Smooth opacity and transform animations (\`opacity 0.4s ease, transform 0.4s ease\`).
+     * Initial Active State: Ensure Slide 1 is active and visible on initial page load (via \`class="slide active"\` or an explicit initial \`showSlide(0)\` call), while remaining slides stay hidden until navigated to.
 4. The code must be 100% self-contained with all CSS and vanilla JavaScript inside the HTML document so it can be previewed live and interacted with immediately in the Artifact panel.`;
 
     const lastMsg = formattedHistory[formattedHistory.length - 1];
