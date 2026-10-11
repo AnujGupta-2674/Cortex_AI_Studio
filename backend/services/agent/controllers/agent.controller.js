@@ -1,48 +1,60 @@
 import axios from "axios";
 import { graph } from "../graph/graph.js";
 import { getMessages, appendMessageToCache } from "../utils/getMessages.js";
+import {
+    AGENT_CREDIT_COSTS,
+    reserveCredits,
+    refundCredits,
+    recordLedgerAsync,
+} from "../utils/creditManager.js";
 
 const CHAT_SERVICE_URL = process.env.CHAT_SERVICE_URL || "http://localhost:8002";
 
 /**
- * List of registered agents and their capabilities
+ * List of registered agents and their capabilities with credit cost
  */
 const AVAILABLE_AGENTS = [
     {
         id: "chat",
         name: "Conversational Agent",
         description: "General Q&A and friendly interactive chat assistant",
-        model: "Groq (openai/gpt-oss-120b)"
+        model: "Groq (openai/gpt-oss-120b)",
+        credits: AGENT_CREDIT_COSTS.chat,
     },
     {
         id: "coding",
         name: "Coding Agent",
         description: "Code generation, debugging, code review, and technical solutions",
-        model: "Gemini (gemini-2.5-flash)"
+        model: "Gemini (gemini-2.5-flash)",
+        credits: AGENT_CREDIT_COSTS.coding,
     },
     {
         id: "vision",
         name: "Vision & Image Agent",
         description: "Image generation, image interpretation, and visual understanding",
-        model: "Gemini (gemini-2.5-flash)"
+        model: "Gemini (gemini-2.5-flash)",
+        credits: AGENT_CREDIT_COSTS.vision,
     },
     {
         id: "pdf",
         name: "PDF Document Agent",
         description: "Professional PDF reports, invoices, whitepapers, and printable documents",
-        model: "Gemini (gemini-2.5-flash)"
+        model: "Gemini (gemini-2.5-flash)",
+        credits: AGENT_CREDIT_COSTS.pdf,
     },
     {
         id: "ppt",
         name: "Presentation Agent",
         description: "Interactive 16:9 presentation slide decks, keynotes, and pitch decks",
-        model: "Gemini (gemini-2.5-flash)"
+        model: "Gemini (gemini-2.5-flash)",
+        credits: AGENT_CREDIT_COSTS.ppt,
     },
     {
         id: "search",
         name: "Web Search Agent",
         description: "Live internet search and real-time knowledge retrieval",
-        model: "Gemini + Google Search Grounding"
+        model: "Gemini + Google Search Grounding",
+        credits: AGENT_CREDIT_COSTS.search,
     }
 ];
 
@@ -67,8 +79,13 @@ const getChatServiceHeaders = (req) => {
  * Controller to execute the LangGraph Agent Workflow
  * Accepts a user prompt and optional conversationId.
  * Creates/appends to conversation and saves user & assistant messages via Chat Service.
+ * Enforces atomic credit reservation and write-behind settlement.
  */
 export const runAgent = async (req, res) => {
+    let creditReservation = null;
+    let creditCost = 1;
+    let userId = null;
+
     try {
         const { prompt, message, query, agent, conversationId } = req.body;
         const userPrompt = (prompt || message || query || "").trim();
@@ -80,10 +97,28 @@ export const runAgent = async (req, res) => {
             });
         }
 
+        userId = req.headers["x-user-id"] || req.user?.userId || req.body?.userId;
+        const requestedAgent = (agent || req.headers["x-agent-type"] || "chat").toLowerCase().trim();
+        creditCost = AGENT_CREDIT_COSTS[requestedAgent] || AGENT_CREDIT_COSTS.default;
+
+        // 1. Pre-flight Atomic Credit Reservation
+        if (userId && userId !== "anonymous") {
+            creditReservation = await reserveCredits(userId, creditCost);
+            if (!creditReservation.success) {
+                return res.status(402).json({
+                    success: false,
+                    error: "InsufficientCredits",
+                    message: `Insufficient credits to run ${requestedAgent.toUpperCase()} Agent. Required: ${creditCost}, available: ${creditReservation.currentCredits}. Please top up your account.`,
+                    requiredCredits: creditCost,
+                    currentCredits: creditReservation.currentCredits,
+                });
+            }
+        }
+
         const headers = getChatServiceHeaders(req);
         let activeConversationId = conversationId;
 
-        // 1. Ensure conversation exists; if not provided, create a new one
+        // 2. Ensure conversation exists; if not provided, create a new one
         if (!activeConversationId) {
             try {
                 const autoTitle = userPrompt.length > 35 
@@ -104,7 +139,7 @@ export const runAgent = async (req, res) => {
             }
         }
 
-        // 2. Fetch previous conversation messages so the AI remembers context
+        // 3. Fetch previous conversation messages so the AI remembers context
         let pastMessages = [];
         if (activeConversationId) {
             try {
@@ -114,7 +149,7 @@ export const runAgent = async (req, res) => {
             }
         }
 
-        // 3. Record the User's Message in the conversation
+        // 4. Record the User's Message in the conversation
         let savedUserMessage = null;
         if (activeConversationId) {
             try {
@@ -135,7 +170,7 @@ export const runAgent = async (req, res) => {
             }
         }
 
-        // 4. Prepare input state and execute the compiled LangGraph workflow with conversation memory
+        // 5. Prepare input state and execute the compiled LangGraph workflow with conversation memory
         const initialState = {
             prompt: userPrompt,
             agent: agent ? agent.toLowerCase().trim() : undefined,
@@ -144,12 +179,22 @@ export const runAgent = async (req, res) => {
             history: pastMessages
         };
 
-        const result = await graph.invoke(initialState, {
-            configurable: { thread_id: String(activeConversationId || "default") }
-        });
+        let result;
+        try {
+            result = await graph.invoke(initialState, {
+                configurable: { thread_id: String(activeConversationId || "default") }
+            });
+        } catch (graphError) {
+            // Refund reserved credits if the agent graph workflow fails
+            if (creditReservation && userId && userId !== "anonymous") {
+                await refundCredits(userId, creditCost, "graph_execution_error");
+            }
+            throw graphError;
+        }
+
         const aiResponse = result.aiResponse || "No response generated by agent.";
 
-        // 5. Record the Assistant's Response in the conversation
+        // 6. Record the Assistant's Response in the conversation
         let savedAssistantMessage = null;
         if (activeConversationId) {
             try {
@@ -170,7 +215,22 @@ export const runAgent = async (req, res) => {
             }
         }
 
-        // 6. Return complete structured response with conversation & message details
+        // 7. Asynchronously record write-behind ledger audit entry
+        if (creditReservation && userId && userId !== "anonymous") {
+            recordLedgerAsync({
+                userId,
+                amount: -creditCost,
+                balanceAfter: creditReservation.remainingCredits,
+                action: "agent_run",
+                agentType: result.agent || requestedAgent,
+                metadata: {
+                    conversationId: activeConversationId || null,
+                    cost: creditCost,
+                },
+            });
+        }
+
+        // 8. Return complete structured response with conversation & message details
         return res.status(200).json({
             success: true,
             data: {
@@ -180,6 +240,8 @@ export const runAgent = async (req, res) => {
                 response: aiResponse,
                 sources: result.sources || [],
                 searchQueries: result.searchQueries || [],
+                remainingCredits: creditReservation ? creditReservation.remainingCredits : undefined,
+                creditsDeducted: creditCost,
                 messages: {
                     user: savedUserMessage,
                     assistant: savedAssistantMessage
@@ -189,6 +251,12 @@ export const runAgent = async (req, res) => {
         
     } catch (error) {
         console.error("Error executing agent workflow:", error);
+
+        // Refund reserved credits on uncaught controller errors
+        if (creditReservation && userId && userId !== "anonymous") {
+            await refundCredits(userId, creditCost, "uncaught_controller_error");
+        }
+
         return res.status(500).json({
             success: false,
             message: "Failed to execute agent workflow.",

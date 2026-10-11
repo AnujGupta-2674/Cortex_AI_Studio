@@ -29,7 +29,20 @@ export const login = async (req, res) => {
         name: decoded.name || decoded.email?.split("@")[0] || "User",
         email: decoded.email,
         avatar: decoded.picture || "",
+        credits: 50,
       });
+    }
+
+    // Ensure credits exist on legacy records
+    const userCredits = user.credits ?? 50;
+    const redisCreditKey = `user:${user._id}:credits`;
+    const cachedBalance = await redis.get(redisCreditKey);
+    let activeCredits = userCredits;
+
+    if (cachedBalance === null) {
+      await redis.set(redisCreditKey, userCredits);
+    } else {
+      activeCredits = Number(cachedBalance);
     }
       
     const sessionId = crypto.randomUUID();
@@ -44,6 +57,7 @@ export const login = async (req, res) => {
         name: user.name,
         email: user.email,
         avatar: user.avatar,
+        credits: activeCredits,
       }),
       "EX",
       SEVEN_DAYS_SEC
@@ -59,7 +73,10 @@ export const login = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Authentication successful",
-      user,
+      user: {
+        ...user.toObject(),
+        credits: activeCredits,
+      },
     });
       
   } catch (error) {

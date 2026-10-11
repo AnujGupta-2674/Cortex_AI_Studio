@@ -7,6 +7,7 @@ import {
   selectCurrentUser,
   selectIsAuthenticated,
   selectIsCheckingAuth,
+  fetchCurrentUser,
 } from '../redux/slices/authSlice.js';
 import {
   selectConversations,
@@ -39,6 +40,7 @@ import ArtifactPanel from '../components/ArtifactPanel.jsx';
 import ChatMessage from '../components/ChatMessage.jsx';
 import HeroHome from '../components/HeroHome.jsx';
 import ChatInput from '../components/ChatInput.jsx';
+import CreditTopupModal from '../components/CreditTopupModal.jsx';
 import { extractCodeBlocks } from '../utils/codeParser.js';
 
 export const Home = () => {
@@ -65,6 +67,7 @@ export const Home = () => {
   // UI Local State
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
+  const [isTopupModalOpen, setIsTopupModalOpen] = useState(false);
   const chatContainerRef = useRef(null);
 
   // Scoped Auto-Scroll strictly within chat container (prevents window jumping)
@@ -97,10 +100,11 @@ export const Home = () => {
     scrollToBottom(true);
   }, [messages.length, isSending, scrollToBottom]);
 
-  // Initial Data Hydration (conversations & available agents)
+  // Initial Data Hydration (conversations, available agents & live credit balance)
   useEffect(() => {
     dispatch(fetchConversations());
     dispatch(fetchAvailableAgents());
+    dispatch(fetchCurrentUser());
   }, [dispatch]);
 
   // Handle Prompt Submission
@@ -152,6 +156,12 @@ export const Home = () => {
   const handleStarterPrompt = (promptText, agentType) => {
     if (agentType) {
       dispatch(setSelectedAgent(agentType));
+    }
+    const cost = agentType === 'ppt' ? 5 : agentType === 'pdf' || agentType === 'vision' ? 3 : agentType === 'coding' || agentType === 'search' ? 2 : 1;
+    const userCredits = user?.credits ?? 0;
+    if (userCredits < cost) {
+      // Agent is selected, warning banner will naturally show in ChatInput dock
+      return;
     }
     handleSendPrompt(promptText, agentType);
   };
@@ -216,6 +226,20 @@ export const Home = () => {
 
           {/* Right Header Controls */}
           <div className="flex items-center gap-2">
+            {/* Live Credit Balance Pill */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-950/40 border border-purple-500/30 text-xs">
+              <span className="text-purple-400 font-bold">⚡</span>
+              <span className="font-mono font-bold text-white">{user?.credits ?? 0}</span>
+              <span className="text-[10px] text-slate-400 hidden sm:inline">credits</span>
+              <button
+                onClick={() => setIsTopupModalOpen(true)}
+                className="ml-1 px-1.5 py-0.5 rounded-md bg-purple-600 hover:bg-purple-500 text-[10px] font-bold text-white transition-all cursor-pointer hover:scale-105 active:scale-95"
+                title="Top-up credits"
+              >
+                + Top up
+              </button>
+            </div>
+
             {/* New Chat shortcut button */}
             <button
               onClick={() => dispatch(startNewChat())}
@@ -272,7 +296,11 @@ export const Home = () => {
 
           {/* If no messages in active conversation, show Gemini-style Hero */}
           {messages.length === 0 && !loadingMessages ? (
-            <HeroHome user={user} onSelectPrompt={handleStarterPrompt} />
+            <HeroHome
+              user={user}
+              onSelectPrompt={handleStarterPrompt}
+              onOpenTopup={() => setIsTopupModalOpen(true)}
+            />
           ) : (
             <div className="max-w-4xl mx-auto w-full">
               {loadingMessages ? (
@@ -335,13 +363,53 @@ export const Home = () => {
         {/* Bottom Floating Prompt Bar Dock with smooth gradient backdrop */}
         <div className="absolute bottom-0 left-0 right-0 pointer-events-none z-20 bg-gradient-to-t from-[#07090e] via-[#07090e]/95 to-transparent pt-8 pb-3 px-4 md:px-6">
           <div className="max-w-4xl mx-auto pointer-events-auto">
-            <ChatInput onSend={handleSendPrompt} isSending={isSending} />
+            {/* Dynamic Error & Credit Warning Banner */}
+            {chatError && (
+              <div
+                className={`mb-2 p-2.5 rounded-xl border flex items-center justify-between gap-3 text-xs backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 shadow-lg ${
+                  chatError.isInsufficientCredits
+                    ? 'bg-purple-950/80 border-purple-500/40 text-purple-200'
+                    : chatError.isRateLimited
+                    ? 'bg-amber-950/80 border-amber-500/40 text-amber-200'
+                    : 'bg-red-950/80 border-red-500/40 text-red-200'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="shrink-0">
+                    {chatError.isInsufficientCredits ? '⚡' : chatError.isRateLimited ? '⏳' : '⚠️'}
+                  </span>
+                  <span className="truncate">
+                    {chatError.message || (typeof chatError === 'string' ? chatError : 'Operation failed.')}
+                  </span>
+                </div>
+                {chatError.isInsufficientCredits && (
+                  <button
+                    onClick={() => setIsTopupModalOpen(true)}
+                    className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs transition-all shrink-0 cursor-pointer shadow-md shadow-purple-600/30 active:scale-95"
+                  >
+                    Top Up Now
+                  </button>
+                )}
+              </div>
+            )}
+
+            <ChatInput
+              onSend={handleSendPrompt}
+              isSending={isSending}
+              onOpenTopup={() => setIsTopupModalOpen(true)}
+            />
           </div>
         </div>
       </div>
 
       {/* 3. Rightmost Artifact & Code Preview Panel */}
       <ArtifactPanel />
+
+      {/* 4. Razorpay Credit Top-up Modal */}
+      <CreditTopupModal
+        isOpen={isTopupModalOpen}
+        onClose={() => setIsTopupModalOpen(false)}
+      />
     </div>
   );
 };

@@ -4,6 +4,7 @@ import cors from 'cors';
 import proxy from 'express-http-proxy';
 import cookieParser from 'cookie-parser';
 import authMiddleware from './middlewares/auth.middleware.js';
+import agentRateLimiter from './middlewares/rateLimiter.middleware.js';
 import getCurrentUser from './controllers/user.controller.js';
 
 const app = express();
@@ -26,6 +27,30 @@ app.use(
     proxy(process.env.AUTH_SERVICE || "http://localhost:8001")
 );
 
+// Payment Proxy to Auth Service (:8001)
+app.use(
+    "/api/payments",
+    (req, res, next) => {
+        // Allow public access to view credit package tiers
+        if (req.path === '/packages' || req.path === '/api/payments/packages') {
+            return next();
+        }
+        return authMiddleware(req, res, next);
+    },
+    proxy(process.env.AUTH_SERVICE || "http://localhost:8001", {
+        proxyReqPathResolver: (req) => {
+            return `/payments${req.url}`;
+        },
+        proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
+            if (srcReq.user) {
+                proxyReqOpts.headers["x-user-id"] = srcReq.user.userId;
+                proxyReqOpts.headers["x-user"] = JSON.stringify(srcReq.user);
+            }
+            return proxyReqOpts;
+        }
+    })
+);
+
 app.use(
     "/api/chat",
     authMiddleware,
@@ -43,6 +68,7 @@ app.use(
 app.use(
     "/api/agent",
     authMiddleware,
+    agentRateLimiter,
     proxy(process.env.AGENT_SERVICE || "http://localhost:8003", {
         proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
             if (srcReq.user) {

@@ -4,6 +4,8 @@ import mongoose from 'mongoose';
 import cookieParser from 'cookie-parser';
 import connectToDB from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
+import { getUserCredits } from './controllers/payment.controller.js';
 
 const app = express();
 const PORT = process.env.PORT || 8001;
@@ -25,6 +27,13 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/auth', authRoutes);
+app.use('/payments', paymentRoutes);
+app.use('/api/payments', paymentRoutes);
+
+// Direct user credit hydration endpoints (used by Agent Service on cache miss)
+app.get('/users/:userId/credits', getUserCredits);
+app.get('/api/users/:userId/credits', getUserCredits);
+
 app.use('/', authRoutes);
 
 

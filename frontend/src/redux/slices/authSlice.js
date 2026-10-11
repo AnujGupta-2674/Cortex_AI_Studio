@@ -79,6 +79,21 @@ export const fetchCurrentUser = createAsyncThunk(
   }
 );
 
+/**
+ * Async Thunk: Fetch latest live credit balance from backend
+ */
+export const fetchUserCredits = createAsyncThunk(
+  'auth/fetchUserCredits',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get('/api/payments/balance');
+      return data.credits;
+    } catch (err) {
+      return rejectWithValue(resolveErrorMessage(err, 'Failed to fetch live credits'));
+    }
+  }
+);
+
 // Hydrate initial state cleanly from storage layer
 const cachedUser = authStorage.getUser();
 
@@ -97,6 +112,12 @@ const authSlice = createSlice({
   reducers: {
     clearError(state) {
       state.error = null;
+    },
+    updateUserCredits(state, action) {
+      if (state.user) {
+        state.user.credits = Number(action.payload);
+        authStorage.setUser(state.user);
+      }
     },
     resetAuthState() {
       authStorage.clearUser();
@@ -147,6 +168,14 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
       })
 
+      // Fetch Credits Lifecycle
+      .addCase(fetchUserCredits.fulfilled, (state, action) => {
+        if (state.user) {
+          state.user.credits = action.payload;
+          authStorage.setUser(state.user);
+        }
+      })
+
       // Logout Lifecycle
       .addCase(logoutUser.pending, (state) => {
         state.loading = true;
@@ -171,10 +200,11 @@ const authSlice = createSlice({
 
 // Selectors for clean component consumption
 export const selectCurrentUser = (state) => state.auth.user;
+export const selectUserCredits = (state) => state.auth.user?.credits ?? 50;
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 export const selectAuthLoading = (state) => state.auth.loading;
 export const selectIsCheckingAuth = (state) => state.auth.isCheckingAuth;
 export const selectAuthError = (state) => state.auth.error;
 
-export const { clearError, resetAuthState } = authSlice.actions;
+export const { clearError, updateUserCredits, resetAuthState } = authSlice.actions;
 export default authSlice.reducer;

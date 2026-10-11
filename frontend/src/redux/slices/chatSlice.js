@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../services/api.js';
+import { updateUserCredits } from './authSlice.js';
 
 // Safe error helper
 const resolveError = (err, fallback) => {
@@ -105,17 +106,43 @@ export const clearConversationMessages = createAsyncThunk(
  */
 export const sendAgentPrompt = createAsyncThunk(
   'chat/sendAgentPrompt',
-  async ({ prompt, agent, conversationId }, { rejectWithValue }) => {
+  async ({ prompt, agent, conversationId }, { dispatch, rejectWithValue }) => {
     try {
+      const selectedAgent = agent && agent !== 'auto' ? agent : undefined;
       const payload = {
         prompt: prompt.trim(),
-        agent: agent && agent !== 'auto' ? agent : undefined,
+        agent: selectedAgent,
         conversationId: conversationId || undefined,
       };
 
-      const res = await api.post('/api/agent', payload);
+      const res = await api.post('/api/agent', payload, {
+        headers: {
+          'x-agent-type': selectedAgent || 'chat',
+        },
+      });
+
+      // Synchronize live credits in UI if returned
+      if (res.data?.data?.remainingCredits !== undefined) {
+        dispatch(updateUserCredits(res.data.data.remainingCredits));
+      }
+
       return res.data.data;
     } catch (err) {
+      if (err.response?.status === 402) {
+        return rejectWithValue({
+          isInsufficientCredits: true,
+          message: err.response?.data?.message || 'Insufficient credits to run this agent.',
+          requiredCredits: err.response?.data?.requiredCredits,
+          currentCredits: err.response?.data?.currentCredits,
+        });
+      }
+      if (err.response?.status === 429) {
+        return rejectWithValue({
+          isRateLimited: true,
+          message: err.response?.data?.message || 'Rate limit reached. Please wait a minute before retrying.',
+          retryAfter: err.response?.data?.retryAfter || 60,
+        });
+      }
       return rejectWithValue(resolveError(err, 'Failed to execute agent workflow'));
     }
   }

@@ -12,6 +12,7 @@ import {
   fetchMessages,
 } from '../redux/slices/chatSlice.js';
 import { selectCurrentUser, logoutUser } from '../redux/slices/authSlice.js';
+import CreditTopupModal from './CreditTopupModal.jsx';
 
 export const Sidebar = ({ isOpen, onClose }) => {
   const dispatch = useDispatch();
@@ -25,6 +26,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [menuOpenId, setMenuOpenId] = useState(null);
+  const [isTopupOpen, setIsTopupOpen] = useState(false);
 
   const filteredConversations = conversations.filter((c) =>
     (c.title || 'Untitled Chat').toLowerCase().includes(search.toLowerCase())
@@ -256,6 +258,25 @@ export const Sidebar = ({ isOpen, onClose }) => {
         )}
       </div>
 
+      {/* Credit Balance Card */}
+      <div className="px-3 py-2 border-t border-white/[0.06] bg-[#090c14]/80">
+        <div className="flex items-center justify-between p-2 rounded-xl bg-purple-950/30 border border-purple-500/20">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">⚡</span>
+            <div>
+              <p className="text-[10px] uppercase font-semibold text-purple-300 tracking-wider">Credits</p>
+              <p className="text-xs font-bold text-white font-mono">{user?.credits ?? 50}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsTopupOpen(true)}
+            className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-[11px] font-semibold transition-all cursor-pointer shadow-sm shadow-purple-600/30 active:scale-95"
+          >
+            Top Up
+          </button>
+        </div>
+      </div>
+
       {/* User Footer Profile & Settings (matching bottom pill in wireframe outline) */}
       <div className="p-3 border-t border-white/[0.08] bg-[#07090e]/90">
         <div className="flex items-center justify-between">
@@ -287,6 +308,12 @@ export const Sidebar = ({ isOpen, onClose }) => {
           </button>
         </div>
       </div>
+
+      {/* Razorpay Credit Topup Modal */}
+      <CreditTopupModal
+        isOpen={isTopupOpen}
+        onClose={() => setIsTopupOpen(false)}
+      />
     </aside>
   );
 };

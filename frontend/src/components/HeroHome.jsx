@@ -37,7 +37,7 @@ const STARTER_PROMPTS = [
 ];
 
 
-export const HeroHome = ({ user, onSelectPrompt }) => {
+export const HeroHome = ({ user, onSelectPrompt, onOpenTopup }) => {
   const dispatch = useDispatch();
   const agents = useSelector(selectAgents);
   const selectedAgent = useSelector(selectSelectedAgent);
@@ -46,15 +46,34 @@ export const HeroHome = ({ user, onSelectPrompt }) => {
 
   return (
     <div className="max-w-4xl mx-auto w-full py-8 px-4 flex flex-col items-center text-center animate-in fade-in duration-500">
-      {/* Top Status Pill */}
-      <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] backdrop-blur-md mb-6 shadow-sm">
-        <span className="flex h-2 w-2 relative">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500" />
-        </span>
-        <span className="text-xs font-medium text-slate-300">
-          Cortex AI Multi-Agent Mesh &bull; Ready
-        </span>
+      {/* Top Status & Live Credits Bar */}
+      <div className="flex flex-wrap items-center justify-center gap-2.5 mb-6">
+        {/* Multi-agent ready status pill */}
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] backdrop-blur-md shadow-sm">
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500" />
+          </span>
+          <span className="text-xs font-medium text-slate-300">
+            Cortex AI Multi-Agent Mesh &bull; Ready
+          </span>
+        </div>
+
+        {/* Live Credit Balance Display with Top-Up Button */}
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-950/60 border border-purple-500/30 backdrop-blur-md shadow-lg shadow-purple-900/20">
+          <span className="text-sm">⚡</span>
+          <span className="text-xs font-medium text-purple-200">Credits:</span>
+          <span className="font-mono font-extrabold text-xs text-white bg-purple-500/20 px-2 py-0.5 rounded-md border border-purple-400/30">
+            {user?.credits ?? 0}
+          </span>
+          <button
+            type="button"
+            onClick={onOpenTopup}
+            className="ml-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white text-[11px] font-bold shadow-md shadow-purple-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          >
+            + Top Up
+          </button>
+        </div>
       </div>
 
       {/* Greeting Title (Gemini style) */}
@@ -67,10 +86,11 @@ export const HeroHome = ({ user, onSelectPrompt }) => {
         How can Cortex AI assist your software architecture, coding, and creative workflow today?
       </p>
 
-      {/* Specialist Agent Pills */}
+      {/* Specialist Agent Pills with Credit Cost Badges */}
       <div className="flex flex-wrap items-center justify-center gap-2 mb-10 max-w-2xl">
         {agents.map((ag) => {
           const isSelected = selectedAgent === ag.id;
+          const cost = ag.credits || (ag.id === 'ppt' ? 5 : ag.id === 'pdf' || ag.id === 'vision' ? 3 : ag.id === 'coding' || ag.id === 'search' ? 2 : 1);
           return (
             <button
               key={ag.id}
@@ -89,6 +109,9 @@ export const HeroHome = ({ user, onSelectPrompt }) => {
               {ag.id === 'ppt' && <span>📊</span>}
               {ag.id === 'auto' && <span>✨</span>}
               <span>{ag.name}</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${isSelected ? 'bg-purple-500/30 text-purple-200' : 'bg-white/[0.05] text-slate-400'}`}>
+                {cost} cr
+              </span>
             </button>
           );
         })}
