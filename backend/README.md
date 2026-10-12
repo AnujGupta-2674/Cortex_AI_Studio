@@ -10,28 +10,28 @@ The backend is organized as a distributed, high-performance Node.js microservice
 
 ```mermaid
 flowchart TD
-    Client[Client Request] --> GW[API Gateway :8000]
+    Client["Client Request"] --> GW["API Gateway :8000"]
     
     subgraph GatewayMiddleware["Gateway Ingress Middleware"]
-        AuthMid[authMiddleware<br/><i>Redis Session Validator</i>]
-        RateMid[agentRateLimiter<br/><i>Redis ZSET 60s Sliding Window</i>]
+        AuthMid["authMiddleware<br/><i>Redis Session Validator</i>"]
+        RateMid["agentRateLimiter<br/><i>Redis ZSET 60s Sliding Window</i>"]
     end
 
     GW --> AuthMid --> RateMid
 
-    RateMid -->|/api/auth & /api/payments| AuthSvc[Auth & Payment Service :8001]
-    RateMid -->|/api/chat| ChatSvc[Chat & History Service :8002]
-    RateMid -->|/api/agent| AgentSvc[Agent Orchestration Service :8003]
+    RateMid -->|/api/auth & /api/payments| AuthSvc["Auth & Payment Service :8001"]
+    RateMid -->|/api/chat| ChatSvc["Chat & History Service :8002"]
+    RateMid -->|/api/agent| AgentSvc["Agent Orchestration Service :8003"]
 
-    AuthSvc --> MongoDB_Auth[(MongoDB: Auth DB)]
-    AuthSvc --> Redis[(Redis In-Memory Store)]
+    AuthSvc --> MongoDB_Auth[("MongoDB: Auth DB")]
+    AuthSvc --> Redis[("Redis In-Memory Store")]
 
-    ChatSvc --> MongoDB_Chat[(MongoDB: Chat DB)]
+    ChatSvc --> MongoDB_Chat[("MongoDB: Chat DB")]
     ChatSvc --> Redis
 
     AgentSvc --> Redis
     AgentSvc -->|Axios Message Persistence| ChatSvc
-    AgentSvc --> LLMs[Groq LPU & Google Gemini Flash]
+    AgentSvc --> LLMs["Groq LPU & Google Gemini Flash"]
 ```
 
 ---

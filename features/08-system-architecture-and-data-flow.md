@@ -6,31 +6,31 @@ Cortex AI is structured as a modular, distributed microservice architecture. Ser
 
 ```mermaid
 flowchart TB
-    Client[Frontend Client<br/><i>React 19 + Vite :5173</i>]
+    Client["Frontend Client<br/><i>React 19 + Vite :5173</i>"]
     
     subgraph GatewayLayer["API Gateway Layer (:8000)"]
-        GW[Express API Gateway]
-        RateLimiter[agentRateLimiter Middleware<br/><i>Redis ZSET Sliding Window</i>]
-        AuthCheck[authMiddleware<br/><i>Session Validator</i>]
+        GW["Express API Gateway"]
+        RateLimiter["agentRateLimiter Middleware<br/><i>Redis ZSET Sliding Window</i>"]
+        AuthCheck["authMiddleware<br/><i>Session Validator</i>"]
     end
 
     subgraph ServiceMesh["Backend Microservice Mesh"]
-        AuthSvc[Auth & Payment Service<br/><i>Port :8001</i>]
-        ChatSvc[Chat & Conversation Service<br/><i>Port :8002</i>]
-        AgentSvc[Agent Service<br/><i>Port :8003 | LangGraph</i>]
+        AuthSvc["Auth & Payment Service<br/><i>Port :8001</i>"]
+        ChatSvc["Chat & Conversation Service<br/><i>Port :8002</i>"]
+        AgentSvc["Agent Service<br/><i>Port :8003 | LangGraph</i>"]
     end
 
     subgraph DataLayer["Data & Persistence Layer"]
-        Redis[(Redis In-Memory Data Store<br/><i>Sessions, Credits, Caches</i>)]
-        MongoAuth[(MongoDB: Auth DB<br/><i>Users, CreditLedger</i>)]
-        MongoChat[(MongoDB: Chat DB<br/><i>Conversations, Messages</i>)]
+        Redis[("Redis In-Memory Data Store<br/><i>Sessions, Credits, Caches</i>")]
+        MongoAuth[("MongoDB: Auth DB<br/><i>Users, CreditLedger</i>")]
+        MongoChat[("MongoDB: Chat DB<br/><i>Conversations, Messages</i>")]
     end
 
     subgraph External["External AI & Payment Providers"]
-        Groq[Groq LPU<br/><i>openai/gpt-oss-120b</i>]
-        Gemini[Google Gemini<br/><i>gemini-2.5-flash</i>]
-        Rzp[Razorpay API<br/><i>Orders & Webhooks</i>]
-        Firebase[Firebase Admin<br/><i>Google Auth Verify</i>]
+        Groq["Groq LPU<br/><i>openai/gpt-oss-120b</i>"]
+        Gemini["Google Gemini<br/><i>gemini-2.5-flash</i>"]
+        Rzp["Razorpay API<br/><i>Orders & Webhooks</i>"]
+        Firebase["Firebase Admin<br/><i>Google Auth Verify</i>"]
     end
 
     Client -->|HTTP / Cookies| GW

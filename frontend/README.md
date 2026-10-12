@@ -10,26 +10,26 @@ The frontend is a single-page application built on **React 19**, **Tailwind CSS 
 
 ```mermaid
 flowchart TD
-    User([User Prompt / Interaction]) --> ChatInput[ChatInput Component]
+    User(["User Prompt / Interaction"]) --> ChatInput["ChatInput Component"]
     
     subgraph ReduxStore["Redux Toolkit Store"]
-        AuthSlice[authSlice<br/><i>User Profile & Live Credits</i>]
-        ChatSlice[chatSlice<br/><i>Conversations & Messages</i>]
-        AgentSlice[agentSlice<br/><i>Specialist Agent Selection</i>]
-        ArtifactSlice[artifactSlice<br/><i>Active Preview Code & Panel State</i>]
+        AuthSlice["authSlice<br/><i>User Profile & Live Credits</i>"]
+        ChatSlice["chatSlice<br/><i>Conversations & Messages</i>"]
+        AgentSlice["agentSlice<br/><i>Specialist Agent Selection</i>"]
+        ArtifactSlice["artifactSlice<br/><i>Active Preview Code & Panel State</i>"]
     end
 
     ChatInput -->|Dispatches sendAgentPrompt| ChatSlice
-    ChatSlice -->|POST /api/agent| Gateway[API Gateway :8000]
+    ChatSlice -->|POST /api/agent| Gateway["API Gateway :8000"]
     Gateway -->|HTTP 200 Stream Response| ChatSlice
     
-    ChatSlice --> ChatMessage[ChatMessage Component]
-    ChatMessage -->|Word-by-word pacing| Typewriter[Streaming Engine]
-    ChatMessage -->|Extracts code blocks| CodeParser[codeParser.js Utility]
+    ChatSlice --> ChatMessage["ChatMessage Component"]
+    ChatMessage -->|Word-by-word pacing| Typewriter["Streaming Engine"]
+    ChatMessage -->|Extracts code blocks| CodeParser["codeParser.js Utility"]
     
     CodeParser -->|Auto-opens if code detected| ArtifactSlice
-    ArtifactSlice --> ArtifactPanel[ArtifactPanel Component]
-    ArtifactPanel -->|Compiles HTML/JSX/Tailwind| Iframe[Sandboxed Iframe Execution]
+    ArtifactSlice --> ArtifactPanel["ArtifactPanel Component"]
+    ArtifactPanel -->|Compiles HTML/JSX/Tailwind| Iframe["Sandboxed Iframe Execution"]
 ```
 
 ---

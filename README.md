@@ -39,36 +39,36 @@ When an agent produces code, the platform compiles and executes it in real time 
 
 ```mermaid
 flowchart TD
-    User([User Prompt / Starter Card]) --> UI[Frontend SPA<br/><i>React 19 + Vite :5173</i>]
+    User(["User Prompt / Starter Card"]) --> UI["Frontend SPA<br/><i>React 19 + Vite :5173</i>"]
     
-    UI -->|HTTP / HTTP-Only Cookies| GW[API Gateway :8000]
+    UI -->|HTTP / HTTP-Only Cookies| GW["API Gateway :8000"]
     
     subgraph GatewayChecks["Gateway Ingress Pipeline"]
-        Auth[authMiddleware<br/><i>Validates session-{uuid} in Redis</i>]
-        Rate[agentRateLimiter<br/><i>Redis ZSET 60s Sliding Window</i>]
+        Auth["authMiddleware<br/><i>Validates session-uuid in Redis</i>"]
+        Rate["agentRateLimiter<br/><i>Redis ZSET 60s Sliding Window</i>"]
     end
 
     GW --> Auth --> Rate
     
-    Rate -->|Forward Stream| AgentSvc[Agent Service :8003]
+    Rate -->|Forward Stream| AgentSvc["Agent Service :8003"]
     
     subgraph AgentExecution["LangGraph Multi-Agent Engine"]
-        CreditReserve[Atomic Pre-Flight Credit Check<br/><i>Redis Lua Script: DEDUCT_CREDITS_LUA</i>]
-        HistoryLoad[Context Hydration<br/><i>Redis Cache: conversation:{id}:messages</i>]
-        Router[Router Node<br/><i>Groq gpt-oss-120b</i>]
-        Specialist[Specialist Agent Node<br/><i>Gemini 2.5 Flash / Groq</i>]
+        CreditReserve["Atomic Pre-Flight Credit Check<br/><i>Redis Lua Script: DEDUCT_CREDITS_LUA</i>"]
+        HistoryLoad["Context Hydration<br/><i>Redis Cache: conversation:id:messages</i>"]
+        Router["Router Node<br/><i>Groq gpt-oss-120b</i>"]
+        Specialist["Specialist Agent Node<br/><i>Gemini 2.5 Flash / Groq</i>"]
     end
 
     AgentSvc --> CreditReserve
     CreditReserve -->|If Approved| HistoryLoad --> Router --> Specialist
     
     Specialist -->|AI Response Stream| UI
-    Specialist -.->|Async Message Persistence| ChatSvc[Chat Service :8002<br/><i>MongoDB</i>]
+    Specialist -.->|Async Message Persistence| ChatSvc["Chat Service :8002<br/><i>MongoDB</i>"]
     
     subgraph ClientExecution["Client-Side Presentation"]
-        Typewriter[Word-by-Word Streaming Engine]
-        CodeParser[codeParser.js: Regex Block Extractor]
-        ArtifactSandbox[Artifact Panel: Sandboxed Iframe srcDoc]
+        Typewriter["Word-by-Word Streaming Engine"]
+        CodeParser["codeParser.js: Regex Block Extractor"]
+        ArtifactSandbox["Artifact Panel: Sandboxed Iframe srcDoc"]
     end
 
     UI --> Typewriter

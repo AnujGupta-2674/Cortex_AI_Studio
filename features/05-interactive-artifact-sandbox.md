@@ -15,13 +15,13 @@ When an assistant response contains runnable code (HTML, interactive JavaScript,
 
 ```mermaid
 flowchart TD
-    A[Assistant Response Stream] --> B[codeParser.js: extractCodeBlocks]
-    B --> C{Contains Executable Block?}
-    C -->|No| D[Standard Chat Markdown Bubble]
-    C -->|Yes: html, js, jsx, svg| E[Artifact Redux Action: openArtifact]
-    E --> F[ArtifactPanel.jsx Opens in Workspace]
-    F --> G[buildPreviewHtml: Wraps code with Tailwind + Runtime]
-    G --> H[Sandboxed Iframe: srcDoc renders live widget]
+    A["Assistant Response Stream"] --> B["codeParser.js: extractCodeBlocks"]
+    B --> C{"Contains Executable Block?"}
+    C -->|No| D["Standard Chat Markdown Bubble"]
+    C -->|Yes: html, js, jsx, svg| E["Artifact Redux Action: openArtifact"]
+    E --> F["ArtifactPanel.jsx Opens in Workspace"]
+    F --> G["buildPreviewHtml: Wraps code with Tailwind + Runtime"]
+    G --> H["Sandboxed Iframe: srcDoc renders live widget"]
 ```
 
 ---

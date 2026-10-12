@@ -24,23 +24,23 @@ The diagram below illustrates the exact execution graph defined in [`backend/ser
 
 ```mermaid
 flowchart TD
-    START([START]) --> RouterNode[Router Node<br/><i>Groq gpt-oss-120b</i>]
+    START(["START"]) --> RouterNode["Router Node<br/><i>Groq gpt-oss-120b</i>"]
     
-    RouterNode -->|evaluates state.agent| Decision{Conditional<br/>Edge}
+    RouterNode -->|evaluates state.agent| Decision{"Conditional<br/>Edge"}
 
-    Decision -->|chat| ChatAgent[Chat Agent<br/><i>Groq 120B</i>]
-    Decision -->|coding| CodingAgent[Coding Agent<br/><i>Gemini 2.5 Flash</i>]
-    Decision -->|vision| VisionAgent[Vision Agent<br/><i>Gemini 2.5 Flash</i>]
-    Decision -->|pdf| PdfAgent[PDF Agent<br/><i>Gemini 2.5 Flash</i>]
-    Decision -->|ppt| PptAgent[PPT Agent<br/><i>Gemini 2.5 Flash</i>]
-    Decision -->|search| SearchAgent[Search Agent<br/><i>Gemini + Google Grounding</i>]
+    Decision -->|chat| ChatAgent["Chat Agent<br/><i>Groq 120B</i>"]
+    Decision -->|coding| CodingAgent["Coding Agent<br/><i>Gemini 2.5 Flash</i>"]
+    Decision -->|vision| VisionAgent["Vision Agent<br/><i>Gemini 2.5 Flash</i>"]
+    Decision -->|pdf| PdfAgent["PDF Agent<br/><i>Gemini 2.5 Flash</i>"]
+    Decision -->|ppt| PptAgent["PPT Agent<br/><i>Gemini 2.5 Flash</i>"]
+    Decision -->|search| SearchAgent["Search Agent<br/><i>Gemini + Google Grounding</i>"]
 
-    ChatAgent --> END([END])
-    CodingAgent --> END([END])
-    VisionAgent --> END([END])
-    PdfAgent --> END([END])
-    PptAgent --> END([END])
-    SearchAgent --> END([END])
+    ChatAgent --> END(["END"])
+    CodingAgent --> END(["END"])
+    VisionAgent --> END(["END"])
+    PdfAgent --> END(["END"])
+    PptAgent --> END(["END"])
+    SearchAgent --> END(["END"])
 ```
 
 ---
