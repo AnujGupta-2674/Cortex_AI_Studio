@@ -45,8 +45,12 @@ Thumbs.db
 *.sln
 *.sw?
 
-# Documentation & Readmes
+# Archives and Backups
+*.zip
+**/*.zip
+"Cortex AI.zip"
+
+# Personal understanding & study notes (Do not push)
 docs/
 **/docs/
-*.md
-**/*.md
+
